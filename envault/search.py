@@ -44,6 +44,19 @@ def filter_by_prefix(entries: Dict[str, str], prefix: str) -> Dict[str, str]:
     return {k: v for k, v in entries.items() if k.startswith(prefix)}
 
 
+def filter_by_suffix(entries: Dict[str, str], suffix: str) -> Dict[str, str]:
+    """Return a dict of entries whose keys end with the given suffix.
+
+    Args:
+        entries: A mapping of key-value pairs to filter.
+        suffix: The suffix string to match against each key.
+
+    Returns:
+        A new dict containing only entries whose keys end with ``suffix``.
+    """
+    return {k: v for k, v in entries.items() if k.endswith(suffix)}
+
+
 def search_summary(
     matched_keys: List[str],
     pattern: str,
