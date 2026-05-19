@@ -15,15 +15,23 @@ def cmd_search(args: argparse.Namespace) -> None:
 
     all_entries = {k: vault.get(k) for k in vault.list_keys()}
 
+    if not all_entries:
+        print("No entries found in vault.")
+        sys.exit(0)
+
     use_regex = getattr(args, "regex", False)
 
-    if args.target == "values":
-        matched = search_values(all_entries, args.pattern, use_regex=use_regex)
-    elif args.target == "prefix":
-        filtered = filter_by_prefix(all_entries, args.pattern)
-        matched = sorted(filtered.keys())
-    else:
-        matched = search_keys(all_entries, args.pattern, use_regex=use_regex)
+    try:
+        if args.target == "values":
+            matched = search_values(all_entries, args.pattern, use_regex=use_regex)
+        elif args.target == "prefix":
+            filtered = filter_by_prefix(all_entries, args.pattern)
+            matched = sorted(filtered.keys())
+        else:
+            matched = search_keys(all_entries, args.pattern, use_regex=use_regex)
+    except Exception as e:
+        print(f"Error: invalid pattern: {e}", file=sys.stderr)
+        sys.exit(1)
 
     summary = search_summary(matched, args.pattern, target=args.target or "keys")
     print(summary)
