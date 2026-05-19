@@ -1,70 +1,64 @@
-"""Search and filter vault entries by key name or value pattern."""
+"""Search and filter utilities for vault keys and values."""
 
 import fnmatch
 import re
-from typing import Dict, List, Optional
+from typing import Optional
+
+from envault.vault import Vault
 
 
 def search_keys(
-    entries: Dict[str, str],
+    vault: Vault,
     pattern: str,
+    *,
     use_regex: bool = False,
-) -> List[str]:
-    """Return keys matching the given glob or regex pattern."""
-    matched = []
-    for key in entries:
-        if use_regex:
-            if re.search(pattern, key):
-                matched.append(key)
-        else:
-            if fnmatch.fnmatch(key, pattern):
-                matched.append(key)
-    return sorted(matched)
+) -> list[str]:
+    """Return keys matching a glob pattern (or regex if use_regex=True)."""
+    all_keys = vault.list_keys()
+    if use_regex:
+        rx = re.compile(pattern)
+        return [k for k in all_keys if rx.search(k)]
+    return [k for k in all_keys if fnmatch.fnmatch(k, pattern)]
 
 
 def search_values(
-    entries: Dict[str, str],
-    pattern: str,
-    use_regex: bool = False,
-) -> List[str]:
-    """Return keys whose values match the given glob or regex pattern."""
-    matched = []
-    for key, value in entries.items():
-        if use_regex:
-            if re.search(pattern, value):
-                matched.append(key)
-        else:
-            if fnmatch.fnmatch(value, pattern):
-                matched.append(key)
-    return sorted(matched)
+    vault: Vault,
+    substring: str,
+    *,
+    case_sensitive: bool = True,
+) -> list[tuple[str, str]]:
+    """Return (key, value) pairs where value contains the substring."""
+    results = []
+    for key in vault.list_keys():
+        value = vault.get(key) or ""
+        haystack = value if case_sensitive else value.lower()
+        needle = substring if case_sensitive else substring.lower()
+        if needle in haystack:
+            results.append((key, value))
+    return results
 
 
-def filter_by_prefix(entries: Dict[str, str], prefix: str) -> Dict[str, str]:
-    """Return a dict of entries whose keys start with the given prefix."""
-    return {k: v for k, v in entries.items() if k.startswith(prefix)}
+def filter_by_prefix(vault: Vault, prefix: str) -> list[str]:
+    """Return keys that start with the given prefix."""
+    return [k for k in vault.list_keys() if k.startswith(prefix)]
 
 
-def filter_by_suffix(entries: Dict[str, str], suffix: str) -> Dict[str, str]:
-    """Return a dict of entries whose keys end with the given suffix.
-
-    Args:
-        entries: A mapping of key-value pairs to filter.
-        suffix: The suffix string to match against each key.
-
-    Returns:
-        A new dict containing only entries whose keys end with ``suffix``.
-    """
-    return {k: v for k, v in entries.items() if k.endswith(suffix)}
+def filter_by_suffix(vault: Vault, suffix: str) -> list[str]:
+    """Return keys that end with the given suffix."""
+    return [k for k in vault.list_keys() if k.endswith(suffix)]
 
 
 def search_summary(
-    matched_keys: List[str],
+    vault: Vault,
     pattern: str,
-    target: str = "keys",
-) -> str:
-    """Return a human-readable summary of search results."""
-    count = len(matched_keys)
-    if count == 0:
-        return f"No {target} matched pattern '{pattern}'."
-    noun = "entry" if count == 1 else "entries"
-    return f"{count} {noun} matched pattern '{pattern}' in {target}."
+    *,
+    use_regex: bool = False,
+) -> dict:
+    """Return a summary dict with matched keys and count."""
+    matched = search_keys(vault, pattern, use_regex=use_regex)
+    return {
+        "pattern": pattern,
+        "use_regex": use_regex,
+        "count": len(matched),
+        "keys": matched,
+    }
